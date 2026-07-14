@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🫏 Guess the Number — P2P</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
+    </script>
     <style>
         * {
             margin: 0;
@@ -239,6 +240,25 @@
             border: 1px solid #fbbf24;
             color: #fbbf24;
         }
+
+        .start-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e94560, #0ea5e9);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 15px;
+            display: none;
+            transition: opacity 0.2s;
+        }
+
+        .start-btn:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -247,12 +267,10 @@
         <h1>🫏 Guess the Number</h1>
         <p class="sub">Peer-to-Peer · No Server · Free</p>
 
-        <!-- Peer ID -->
         <div class="peer-id-box">
             Your ID: <span id="myPeerId">Connecting...</span>
         </div>
 
-        <!-- Connect -->
         <div class="input-group">
             <input type="text" id="peerInput" placeholder="Enter peer ID to connect..." />
             <button id="connectBtn">Connect</button>
@@ -262,10 +280,8 @@
             <button id="hostBtn" style="flex:1;">👑 Host Game</button>
         </div>
 
-        <!-- Error -->
         <div class="error" id="error"></div>
 
-        <!-- Game Area -->
         <div class="game-area" id="gameArea">
             <div class="status-box" id="statusBox">
                 Waiting for host to start...
@@ -301,9 +317,7 @@
                 </div>
             </div>
 
-            <button id="startGameBtn" style="display:none;width:100%;margin-top:12px;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#e94560,#0ea5e9);color:#fff;font-weight:600;cursor:pointer;">
-                🚀 Start Game
-            </button>
+            <button class="start-btn" id="startGameBtn">🚀 Start Game</button>
         </div>
     </div>
 
@@ -342,9 +356,7 @@
 
         // ─── PeerJS ──────────────────────────────────────────────────
         function initPeer() {
-            peer = new Peer(undefined, {
-                debug: 2
-            });
+            peer = new Peer(undefined, { debug: 0 });
 
             peer.on('open', (id) => {
                 myPeerId.textContent = id;
@@ -357,6 +369,12 @@
                 showError(null);
                 statusBox.innerHTML = '🔗 Connected to peer.';
                 gameArea.classList.add('active');
+
+                if (isHost) {
+                    // Auto-send host init when someone connects
+                    sendMessage({ type: 'init', players: players, isHost: true });
+                    updateUI();
+                }
             });
 
             peer.on('error', (err) => {
@@ -377,12 +395,11 @@
             conn.on('close', () => {
                 statusBox.innerHTML = '🔴 Peer disconnected.';
                 gameArea.classList.remove('active');
+                startGameBtn.style.display = 'none';
             });
 
-            // Send player name on connect
-            if (isHost) {
-                sendMessage({ type: 'init', players: [{ id: peer.id, name: playerName }], isHost: true });
-            } else {
+            // If we're joining, send our name
+            if (!isHost) {
                 sendMessage({ type: 'init', playerName: playerName });
             }
         }
@@ -401,7 +418,7 @@
             switch (data.type) {
                 case 'init':
                     if (data.isHost) {
-                        // We're joining a host
+                        // Joining a host
                         players = data.players || [];
                         isHost = false;
                         updateUI();
@@ -413,7 +430,10 @@
                     } else {
                         // Someone joined us (we're host)
                         if (isHost) {
-                            players.push({ id: data.playerName, name: data.playerName });
+                            const newPlayer = { id: data.playerName, name: data.playerName };
+                            if (!players.find(p => p.id === newPlayer.id)) {
+                                players.push(newPlayer);
+                            }
                             updateUI();
                             broadcastState();
                         }
@@ -459,6 +479,7 @@
                         statusBox.innerHTML = '🏆 Game finished!';
                         guessInput.disabled = true;
                         guessBtn.disabled = true;
+                        startGameBtn.style.display = 'none';
                     }
                     break;
 
@@ -487,15 +508,28 @@
 
         // ─── UI Updates ─────────────────────────────────────────────
         function updateUI() {
-            // Players
+            // Players list
             playerList.innerHTML = players.map(p =>
                 `<span class="player-tag ${p.id === peer?.id ? 'host' : ''}">${p.name} ${p.id === peer?.id ? '👑' : ''}</span>`
             ).join('');
 
             // Start button for host
             if (isHost && !gameActive && !gameFinished) {
-                startGameBtn.style.display = players.length >= 2 ? 'block' : 'none';
-                startGameBtn.textContent = `🚀 Start Game (${players.length} players)`;
+                if (players.length >= 2) {
+                    startGameBtn.style.display = 'block';
+                    startGameBtn.textContent = `🚀 Start Game (${players.length} players)`;
+                } else {
+                    startGameBtn.style.display = 'none';
+                }
+            } else {
+                startGameBtn.style.display = 'none';
+            }
+
+            // Update waiting message
+            if (isHost && !gameActive && !gameFinished) {
+                waitingMessage.textContent = players.length < 2 ?
+                    'Waiting for players to join...' :
+                    'Ready to start! Click "Start Game" below.';
             }
         }
 
@@ -514,12 +548,11 @@
 
         // ─── Show Error ─────────────────────────────────────────────
         function showError(msg) {
-            const el = document.getElementById('error');
             if (msg) {
-                el.textContent = msg;
-                el.classList.add('visible');
+                error.textContent = msg;
+                error.classList.add('visible');
             } else {
-                el.classList.remove('visible');
+                error.classList.remove('visible');
             }
         }
 
@@ -532,12 +565,13 @@
             gameArea.classList.add('active');
             statusBox.innerHTML = '👑 You are the host. Share your Peer ID with others.';
             waitingMessage.style.display = 'block';
+            waitingMessage.textContent = 'Waiting for players to join...';
             gameActiveDiv.style.display = 'none';
             gameFinishedDiv.style.display = 'none';
             startGameBtn.style.display = 'none';
             updateUI();
 
-            // Wait for connections
+            // Listen for incoming connections
             peer.on('connection', (incoming) => {
                 conn = incoming;
                 setupConnection();
@@ -599,6 +633,7 @@
                 statusBox.innerHTML = '🏆 You won!';
                 guessInput.disabled = true;
                 guessBtn.disabled = true;
+                startGameBtn.style.display = 'none';
             } else {
                 guessInput.value = '';
                 guessInput.focus();
