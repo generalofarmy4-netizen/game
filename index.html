@@ -3,693 +3,1172 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🫏 Guess the Number — P2P</title>
+    <title>🫏 Donkey Quest — 3D Multiplayer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
     </script>
     <style>
-        /* same as before */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #0f0f1a;
-            color: #e0e0e0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a1a;
+            color: #fff;
         }
-        .container {
-            background: #1a1a2e;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 500px;
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            border: 1px solid #2a2a4a;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
         }
-        h1 {
-            font-size: 28px;
-            text-align: center;
+
+        #topBar {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #topBar>div {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .badge {
+            background: rgba(233, 69, 96, 0.2);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #e94560;
+        }
+
+        .badge.gold {
+            background: rgba(251, 191, 36, 0.2);
+            border-color: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        #questPanel {
+            position: fixed;
+            bottom: 80px;
+            right: 24px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(12px);
+            padding: 16px 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            min-width: 180px;
+            pointer-events: auto;
+        }
+
+        #questPanel h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #e94560, #0ea5e9);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }
-        .sub {
-            text-align: center;
+
+        #questPanel .quest-item {
+            font-size: 13px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #questPanel .quest-item .progress {
+            color: #fbbf24;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            gap: 20px;
+            pointer-events: none;
+        }
+
+        #controls kbd {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #ddd;
+        }
+
+        #peerPanel {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 12px;
+            min-width: 120px;
+            pointer-events: auto;
+        }
+
+        #peerPanel .label {
             color: #666;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #peerPanel .id {
+            color: #4ade80;
+            font-family: monospace;
+            font-size: 11px;
+            word-break: break-all;
+        }
+
+        #peerPanel .peer-item {
+            color: #aaa;
+            font-size: 11px;
+            padding: 2px 0;
+        }
+
+        #connectUI {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 30, 0.92);
+            backdrop-filter: blur(20px);
+            padding: 32px 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            text-align: center;
+            z-index: 100;
+            min-width: 320px;
+            pointer-events: auto;
+        }
+
+        #connectUI h2 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        #connectUI p {
+            color: #888;
             font-size: 13px;
             margin-bottom: 20px;
         }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-        .input-group input {
-            flex: 1;
-            padding: 12px 16px;
+
+        #connectUI input {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 16px;
             border-radius: 12px;
-            border: 1px solid #2a2a4a;
-            background: #0f0f1a;
             color: #fff;
+            width: 100%;
             font-size: 14px;
+            margin-bottom: 10px;
             outline: none;
         }
-        .input-group input:focus {
+
+        #connectUI input:focus {
             border-color: #e94560;
         }
-        .input-group button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 12px;
+
+        #connectUI button {
             background: linear-gradient(135deg, #e94560, #0ea5e9);
-            color: #fff;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .input-group button:hover {
-            transform: scale(1.02);
-        }
-        .peer-id-box {
-            background: #0f0f1a;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px solid #1a1a3a;
-            text-align: center;
-            font-size: 13px;
-            color: #aaa;
-            word-break: break-all;
-            margin-bottom: 16px;
-        }
-        .peer-id-box span {
-            color: #fff;
-            font-weight: 600;
-        }
-        .game-area {
-            margin-top: 16px;
-            padding: 16px;
-            background: #0f0f1a;
-            border-radius: 12px;
-            border: 1px solid #1a1a3a;
-            display: none;
-        }
-        .game-area.active {
-            display: block;
-        }
-        .guess-input {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
-        .guess-input input {
-            flex: 1;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid #2a2a4a;
-            background: #0f0f1a;
-            color: #fff;
-            font-size: 16px;
-            outline: none;
-        }
-        .guess-input button {
-            padding: 12px 20px;
             border: none;
+            padding: 10px 24px;
             border-radius: 12px;
-            background: #e94560;
             color: #fff;
             font-weight: 600;
             cursor: pointer;
-        }
-        .guess-history {
-            margin-top: 12px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        .guess-entry {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid #1a1a3a;
-            font-size: 13px;
-            color: #aaa;
-        }
-        .guess-entry .name {
-            color: #fff;
-        }
-        .guess-entry .too-high {
-            color: #e94560;
-        }
-        .guess-entry .too-low {
-            color: #4ade80;
-        }
-        .guess-entry .winner {
-            color: #fbbf24;
-        }
-        .status-box {
-            text-align: center;
-            padding: 12px;
-            background: rgba(14, 165, 233, 0.1);
-            border-radius: 12px;
-            border: 1px solid rgba(14, 165, 233, 0.2);
             font-size: 14px;
-            color: #aaa;
-            margin-bottom: 12px;
+            margin: 4px 4px;
+            pointer-events: auto;
+            transition: opacity 0.2s;
         }
-        .error {
-            color: #e94560;
-            font-size: 13px;
-            padding: 8px 12px;
-            background: rgba(233, 69, 96, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(233, 69, 96, 0.2);
-            margin-top: 8px;
-            display: none;
+
+        #connectUI button:hover {
+            opacity: 0.85;
         }
-        .error.visible {
-            display: block;
+
+        #connectUI button.secondary {
+            background: rgba(255, 255, 255, 0.06);
         }
-        .winner-announce {
-            text-align: center;
-            padding: 16px;
-            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(14, 165, 233, 0.2));
-            border-radius: 12px;
-            margin-top: 12px;
+
+        .hidden {
+            display: none !important;
         }
-        .winner-announce .big {
-            font-size: 28px;
+
+        #message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 16px;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            font-size: 24px;
             font-weight: 700;
             color: #fbbf24;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-align: center;
+            z-index: 50;
         }
-        .player-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 12px;
+
+        #message.show {
+            opacity: 1;
         }
-        .player-tag {
-            background: #1a1a3a;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+
+        #message .sub {
+            font-size: 14px;
+            font-weight: 400;
             color: #aaa;
-        }
-        .player-tag.host {
-            border: 1px solid #fbbf24;
-            color: #fbbf24;
-        }
-        .start-btn {
-            width: 100%;
-            margin-top: 12px;
-            padding: 12px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #e94560, #0ea5e9);
-            color: #fff;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 15px;
-            display: none;
-        }
-        .start-btn:hover {
-            opacity: 0.9;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>🫏 Guess the Number</h1>
-        <p class="sub">Peer-to-Peer · No Server · Free</p>
-
-        <div class="peer-id-box">
-            Your ID: <span id="myPeerId">Connecting...</span>
+    <!-- ─── Connect UI ────────────────────────────────────────────── -->
+    <div id="connectUI">
+        <h2>🫏 Donkey Quest</h2>
+        <p>Multiplayer 3D adventure</p>
+        <input type="text" id="peerIdInput" placeholder="Enter Peer ID to join, or leave empty to host" />
+        <div>
+            <button id="hostBtn">👑 Host Game</button>
+            <button id="joinBtn" class="secondary">🔗 Join Game</button>
         </div>
-
-        <div class="input-group">
-            <input type="text" id="peerInput" placeholder="Enter peer ID to connect..." />
-            <button id="connectBtn">Connect</button>
-        </div>
-
-        <div class="input-group">
-            <button id="hostBtn" style="flex:1;">👑 Host Game</button>
-        </div>
-
-        <div class="error" id="error"></div>
-
-        <div class="game-area" id="gameArea">
-            <div class="status-box" id="statusBox">Waiting for host to start...</div>
-            <div class="player-list" id="playerList"></div>
-
-            <div id="gameContent">
-                <div id="waitingMessage" style="text-align:center;color:#555;padding:12px;">
-                    Waiting for host to start the game...
-                </div>
-
-                <div id="gameActive" style="display:none;">
-                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#aaa;margin-bottom:8px;">
-                        <span>Guesses: <span id="guessCount">0</span></span>
-                        <span>Remaining: <span id="remainingGuesses">10</span></span>
-                    </div>
-                    <div class="guess-input">
-                        <input type="number" id="guessInput" min="1" max="100" placeholder="Your guess..." />
-                        <button id="guessBtn">Guess</button>
-                    </div>
-                    <div class="guess-history" id="guessHistory"></div>
-                </div>
-
-                <div id="gameFinished" style="display:none;">
-                    <div class="winner-announce">
-                        <div class="big">🏆</div>
-                        <div style="font-size:20px;font-weight:600;margin:8px 0;" id="winnerName">—</div>
-                        <div style="color:#888;font-size:14px;">The number was <span id="winningNumber">—</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <button class="start-btn" id="startGameBtn">🚀 Start Game</button>
+        <div style="margin-top:12px;font-size:11px;color:#555;">
+            Your ID: <span id="myPeerIdDisplay">connecting...</span>
         </div>
     </div>
 
-    <script>
-        // ─── State ──────────────────────────────────────────────────
-        let peer = null;
-        let conn = null;
-        let isHost = false;
-        let gameActive = false;
-        let gameFinished = false;
-        let number = null;
-        let guesses = [];
-        let players = [];
-        let playerName = 'Player';
-        let isConnected = false;
-        let myId = null;
+    <!-- ─── UI ────────────────────────────────────────────────────── -->
+    <div id="ui">
+        <div id="topBar">
+            <div>
+                <span style="font-weight:700;">🫏 Donkey Quest</span>
+                <span class="badge" id="playerCountBadge">👤 1</span>
+                <span class="badge gold" id="carrotBadge">🥕 0</span>
+            </div>
+            <div>
+                <span class="badge" id="questStatusBadge">📋 Collect 5 carrots</span>
+            </div>
+        </div>
+    </div>
 
-        // ─── DOM ────────────────────────────────────────────────────
-        const myPeerId = document.getElementById('myPeerId');
-        const peerInput = document.getElementById('peerInput');
-        const connectBtn = document.getElementById('connectBtn');
+    <div id="questPanel">
+        <h4>📋 Active Quest</h4>
+        <div class="quest-item" id="questItem">
+            <span>Collect carrots</span>
+            <span class="progress" id="questProgress">0 / 5</span>
+        </div>
+    </div>
+
+    <div id="peerPanel">
+        <div class="label">Players</div>
+        <div id="peerList">
+            <div class="peer-item">You (host)</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <span><kbd>W A S D</kbd> Move</span>
+        <span><kbd>Space</kbd> Jump</span>
+        <span><kbd>Mouse</kbd> Look</span>
+    </div>
+
+    <div id="message">
+        <div id="msgText">🎉 Quest Complete!</div>
+        <div class="sub" id="msgSub">You collected all carrots!</div>
+    </div>
+
+    <!-- ─── Three.js ─────────────────────────────────────────────────── -->
+    <script>
+        // ──────────────────────────────────────────────────────────────
+        // 🧠 DONKEY QUEST — 3D MULTIPLAYER
+        // ──────────────────────────────────────────────────────────────
+
+        // ─── State ──────────────────────────────────────────────────
+        const state = {
+            peer: null,
+            conn: null,
+            isHost: false,
+            myId: null,
+            players: {},
+            carrots: [],
+            questTarget: 5,
+            questProgress: 0,
+            questComplete: false,
+            keys: { w: false, a: false, s: false, d: false, space: false },
+            playerSpeed: 5,
+            jumpPower: 6,
+            gravity: -20,
+            velocity: { x: 0, y: 0, z: 0 },
+            isGrounded: false,
+            yaw: 0,
+            pitch: 0,
+            mouseLocked: false,
+            carrotsCollected: 0,
+        };
+
+        // ─── DOM ──────────────────────────────────────────────────────
+        const peerIdInput = document.getElementById('peerIdInput');
         const hostBtn = document.getElementById('hostBtn');
-        const error = document.getElementById('error');
-        const gameArea = document.getElementById('gameArea');
-        const statusBox = document.getElementById('statusBox');
-        const playerList = document.getElementById('playerList');
-        const waitingMessage = document.getElementById('waitingMessage');
-        const gameActiveDiv = document.getElementById('gameActive');
-        const gameFinishedDiv = document.getElementById('gameFinished');
-        const guessInput = document.getElementById('guessInput');
-        const guessBtn = document.getElementById('guessBtn');
-        const guessHistory = document.getElementById('guessHistory');
-        const guessCount = document.getElementById('guessCount');
-        const remainingGuesses = document.getElementById('remainingGuesses');
-        const startGameBtn = document.getElementById('startGameBtn');
-        const winnerName = document.getElementById('winnerName');
-        const winningNumber = document.getElementById('winningNumber');
+        const joinBtn = document.getElementById('joinBtn');
+        const myPeerIdDisplay = document.getElementById('myPeerIdDisplay');
+        const playerCountBadge = document.getElementById('playerCountBadge');
+        const carrotBadge = document.getElementById('carrotBadge');
+        const questStatusBadge = document.getElementById('questStatusBadge');
+        const questProgress = document.getElementById('questProgress');
+        const peerList = document.getElementById('peerList');
+        const msgEl = document.getElementById('message');
+        const msgText = document.getElementById('msgText');
+        const msgSub = document.getElementById('msgSub');
+        const connectUI = document.getElementById('connectUI');
+
+        // ─── Three.js Setup ──────────────────────────────────────────
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 80, 150);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 8, 12);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.body.prepend(renderer.domElement);
+
+        // ─── Lights ──────────────────────────────────────────────────
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+        sunLight.position.set(50, 80, 30);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 200;
+        sunLight.shadow.camera.left = -60;
+        sunLight.shadow.camera.right = 60;
+        sunLight.shadow.camera.top = 60;
+        sunLight.shadow.camera.bottom = -60;
+        scene.add(sunLight);
+
+        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x3a7d44, 0.6);
+        scene.add(hemiLight);
+
+        // ─── Ground ──────────────────────────────────────────────────
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x4a8c5c,
+            roughness: 0.9,
+            metalness: 0.0,
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid helper
+        const gridHelper = new THREE.GridHelper(200, 40, 0x3a7d44, 0x2d6a3f);
+        gridHelper.position.y = 0.1;
+        scene.add(gridHelper);
+
+        // ─── Trees ──────────────────────────────────────────────────
+        function createTree(x, z) {
+            const group = new THREE.Group();
+
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4c3b, roughness: 0.9 });
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2, 6), trunkMat);
+            trunk.position.y = 1;
+            trunk.castShadow = true;
+            group.add(trunk);
+
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x2d6a3f, roughness: 0.8 });
+            const leaf1 = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), leafMat);
+            leaf1.position.y = 2.5;
+            leaf1.scale.y = 0.8;
+            leaf1.castShadow = true;
+            group.add(leaf1);
+
+            const leaf2 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 6, 6), leafMat);
+            leaf2.position.set(0.7, 2.0, 0.7);
+            leaf2.castShadow = true;
+            group.add(leaf2);
+
+            const leaf3 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 6, 6), leafMat);
+            leaf3.position.set(-0.7, 2.0, -0.7);
+            leaf3.castShadow = true;
+            group.add(leaf3);
+
+            group.position.set(x, 0, z);
+            const scale = 0.8 + Math.random() * 0.6;
+            group.scale.set(scale, scale, scale);
+            group.rotation.y = Math.random() * Math.PI * 2;
+
+            return group;
+        }
+
+        for (let i = 0; i < 60; i++) {
+            const x = (Math.random() - 0.5) * 180;
+            const z = (Math.random() - 0.5) * 180;
+            if (Math.abs(x) < 15 && Math.abs(z) < 15) continue;
+            const tree = createTree(x, z);
+            scene.add(tree);
+        }
+
+        // ─── Rocks ──────────────────────────────────────────────────
+        function createRock(x, z) {
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x8a8a8a,
+                roughness: 0.95,
+                metalness: 0.05,
+            });
+            const geo = new THREE.DodecahedronGeometry(0.4 + Math.random() * 0.6);
+            const rock = new THREE.Mesh(geo, mat);
+            rock.position.set(x, 0.2, z);
+            rock.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+            rock.scale.y = 0.6 + Math.random() * 0.4;
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            return rock;
+        }
+
+        for (let i = 0; i < 30; i++) {
+            const x = (Math.random() - 0.5) * 160;
+            const z = (Math.random() - 0.5) * 160;
+            if (Math.abs(x) < 12 && Math.abs(z) < 12) continue;
+            scene.add(createRock(x, z));
+        }
+
+        // ─── Water ──────────────────────────────────────────────────
+        const waterMat = new THREE.MeshStandardMaterial({
+            color: 0x1a6a8a,
+            roughness: 0.1,
+            metalness: 0.3,
+            transparent: true,
+            opacity: 0.6,
+        });
+        const water = new THREE.Mesh(new THREE.PlaneGeometry(30, 20), waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(20, 0.2, 30);
+        scene.add(water);
+
+        // ─── Castle ──────────────────────────────────────────────────
+        function createCastle() {
+            const group = new THREE.Group();
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.8 });
+
+            // Walls
+            const wallGeo = new THREE.BoxGeometry(6, 4, 0.5);
+            const wall1 = new THREE.Mesh(wallGeo, stoneMat);
+            wall1.position.set(0, 2, -3);
+            wall1.castShadow = true;
+            group.add(wall1);
+
+            const wall2 = new THREE.Mesh(wallGeo, stoneMat);
+            wall2.position.set(0, 2, 3);
+            wall2.castShadow = true;
+            group.add(wall2);
+
+            const wallGeo2 = new THREE.BoxGeometry(0.5, 4, 6);
+            const wall3 = new THREE.Mesh(wallGeo2, stoneMat);
+            wall3.position.set(-3, 2, 0);
+            wall3.castShadow = true;
+            group.add(wall3);
+
+            const wall4 = new THREE.Mesh(wallGeo2, stoneMat);
+            wall4.position.set(3, 2, 0);
+            wall4.castShadow = true;
+            group.add(wall4);
+
+            // Towers
+            const towerMat = new THREE.MeshStandardMaterial({ color: 0x9a8a7a, roughness: 0.8 });
+            for (let i = -1; i <= 1; i += 2) {
+                for (let j = -1; j <= 1; j += 2) {
+                    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 5, 8), towerMat);
+                    tower.position.set(i * 3.5, 2.5, j * 3.5);
+                    tower.castShadow = true;
+                    group.add(tower);
+
+                    const roof = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.2, 1.5, 6),
+                        new THREE.MeshStandardMaterial({ color: 0x6a2a2a, roughness: 0.7 })
+                    );
+                    roof.position.set(i * 3.5, 5.2, j * 3.5);
+                    roof.castShadow = true;
+                    group.add(roof);
+                }
+            }
+
+            group.position.set(-15, 0, -15);
+            return group;
+        }
+        scene.add(createCastle());
+
+        // ─── Carrots ──────────────────────────────────────────────────
+        const carrotGroup = new THREE.Group();
+
+        function createCarrot(x, z) {
+            const group = new THREE.Group();
+
+            const carrotMat = new THREE.MeshStandardMaterial({ color: 0xe67e22, roughness: 0.6 });
+            const carrot = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.6, 6), carrotMat);
+            carrot.position.y = 0.3;
+            carrot.castShadow = true;
+            group.add(carrot);
+
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, roughness: 0.7 });
+            for (let i = 0; i < 3; i++) {
+                const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.2), leafMat);
+                leaf.position.set(0, 0.6, 0);
+                leaf.rotation.x = -0.3 + i * 0.3;
+                leaf.rotation.z = (i - 1) * 0.4;
+                group.add(leaf);
+            }
+
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.15 })
+            );
+            glow.position.y = 0.3;
+            group.add(glow);
+
+            group.position.set(x, 0.1, z);
+            group.rotation.y = Math.random() * Math.PI * 2;
+            group.userData = { collected: false };
+            return group;
+        }
+
+        function spawnCarrots(count) {
+            // Remove old carrots
+            while (carrotGroup.children.length) {
+                carrotGroup.remove(carrotGroup.children[0]);
+            }
+            state.carrots = [];
+
+            for (let i = 0; i < count; i++) {
+                let x, z, tooClose;
+                let attempts = 0;
+                do {
+                    x = (Math.random() - 0.5) * 100;
+                    z = (Math.random() - 0.5) * 100;
+                    tooClose = state.carrots.some(c => {
+                        const dx = c.position.x - x;
+                        const dz = c.position.z - z;
+                        return dx * dx + dz * dz < 4;
+                    });
+                    attempts++;
+                } while ((tooClose || Math.abs(x) < 8 && Math.abs(z) < 8) && attempts < 50);
+
+                const carrot = createCarrot(x, z);
+                carrotGroup.add(carrot);
+                state.carrots.push(carrot);
+            }
+            scene.add(carrotGroup);
+        }
+
+        spawnCarrots(12);
+
+        // ─── Player ──────────────────────────────────────────────────
+        const playerGroup = new THREE.Group();
+
+        // Body
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x6a4a3a, roughness: 0.7 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.2), bodyMat);
+        body.position.y = 0.4;
+        body.castShadow = true;
+        playerGroup.add(body);
+
+        // Head
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x8a6a5a, roughness: 0.7 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), headMat);
+        head.position.set(0, 1.0, -0.1);
+        head.castShadow = true;
+        playerGroup.add(head);
+
+        // Ears
+        const earMat = new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.8 });
+        const earGeo = new THREE.BoxGeometry(0.08, 0.5, 0.15);
+        for (let side = -1; side <= 1; side += 2) {
+            const ear = new THREE.Mesh(earGeo, earMat);
+            ear.position.set(side * 0.3, 1.3, 0);
+            ear.rotation.z = side * 0.4;
+            ear.rotation.x = -0.3;
+            playerGroup.add(ear);
+        }
+
+        // Legs
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x5a3a2a, roughness: 0.8 });
+        const legGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+        for (let side = -1; side <= 1; side += 2) {
+            for (let front = -1; front <= 1; front += 2) {
+                const leg = new THREE.Mesh(legGeo, legMat);
+                leg.position.set(side * 0.25, 0.2, front * 0.3);
+                leg.userData = { side, front, phase: 0 };
+                playerGroup.add(leg);
+            }
+        }
+
+        // Tail
+        const tailMat = new THREE.MeshStandardMaterial({ color: 0x5a3a2a });
+        const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, 0.3, 4), tailMat);
+        tail.position.set(0, 0.2, -0.7);
+        tail.rotation.x = 0.8;
+        tail.userData = { baseRot: 0.8 };
+        playerGroup.add(tail);
+
+        // Eye
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        for (let side = -1; side <= 1; side += 2) {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
+            eye.position.set(side * 0.2, 1.1, -0.3);
+            playerGroup.add(eye);
+
+            const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), pupilMat);
+            pupil.position.set(side * 0.22, 1.1, -0.35);
+            playerGroup.add(pupil);
+        }
+
+        playerGroup.position.set(0, 0.1, 0);
+        scene.add(playerGroup);
+
+        // ─── Other Players ──────────────────────────────────────────
+        const otherPlayers = {};
+
+        function createOtherPlayer(id, name) {
+            const group = new THREE.Group();
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a6a8a, roughness: 0.7 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.0), bodyMat);
+            body.position.y = 0.35;
+            body.castShadow = true;
+            group.add(body);
+
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x7a8a7a, roughness: 0.7 });
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), headMat);
+            head.position.set(0, 0.9, -0.1);
+            head.castShadow = true;
+            group.add(head);
+
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8 });
+            const legGeo = new THREE.BoxGeometry(0.18, 0.35, 0.18);
+            for (let side = -1; side <= 1; side += 2) {
+                for (let front = -1; front <= 1; front += 2) {
+                    const leg = new THREE.Mesh(legGeo, legMat);
+                    leg.position.set(side * 0.22, 0.18, front * 0.25);
+                    leg.userData = { side, front, phase: 0 };
+                    group.add(leg);
+                }
+            }
+
+            group.position.set(0, 0.1, 0);
+            group.userData = { name, id, targetPos: null, targetRot: 0, velocity: { x: 0, z: 0 } };
+            scene.add(group);
+            return group;
+        }
+
+        // ─── Camera ──────────────────────────────────────────────────
+        const cameraOffset = new THREE.Vector3(0, 4, 7);
+
+        // ─── Keyboard ──────────────────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') state.keys.w = true;
+            if (key === 'a') state.keys.a = true;
+            if (key === 's') state.keys.s = true;
+            if (key === 'd') state.keys.d = true;
+            if (key === ' ') {
+                e.preventDefault();
+                state.keys.space = true;
+                if (state.isGrounded) {
+                    state.velocity.y = state.jumpPower;
+                    state.isGrounded = false;
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') state.keys.w = false;
+            if (key === 'a') state.keys.a = false;
+            if (key === 's') state.keys.s = false;
+            if (key === 'd') state.keys.d = false;
+            if (key === ' ') state.keys.space = false;
+        });
+
+        // ─── Mouse ──────────────────────────────────────────────────
+        let isPointerLocked = false;
+
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === renderer.domElement;
+            if (isPointerLocked) {
+                state.mouseLocked = true;
+            }
+        });
+
+        renderer.domElement.addEventListener('click', () => {
+            if (!isPointerLocked) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isPointerLocked) return;
+            const sensitivity = 0.002;
+            state.yaw -= e.movementX * sensitivity;
+            state.pitch -= e.movementY * sensitivity;
+            state.pitch = Math.max(-0.8, Math.min(0.8, state.pitch));
+        });
+
+        // ─── Resize ──────────────────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ─── Quest System ────────────────────────────────────────────
+        function updateQuestUI() {
+            const remaining = state.questTarget - state.questProgress;
+            questProgress.textContent = `${state.questProgress} / ${state.questTarget}`;
+            carrotBadge.textContent = `🥕 ${state.carrotsCollected}`;
+
+            if (state.questProgress >= state.questTarget && !state.questComplete) {
+                state.questComplete = true;
+                showMessage('🎉 Quest Complete!', 'You collected all carrots!');
+                questStatusBadge.textContent = '✅ Quest Complete!';
+                // Spawn new quest
+                setTimeout(() => {
+                    state.questTarget = state.questTarget + 3;
+                    state.questProgress = 0;
+                    state.questComplete = false;
+                    questStatusBadge.textContent = `📋 Collect ${state.questTarget} carrots`;
+                    updateQuestUI();
+                    showMessage('📋 New Quest!', `Collect ${state.questTarget} carrots`);
+                    spawnCarrots(state.questTarget + 5);
+                }, 3000);
+            }
+        }
+
+        function showMessage(text, sub) {
+            msgText.textContent = text;
+            msgSub.textContent = sub || '';
+            msgEl.classList.add('show');
+            setTimeout(() => {
+                msgEl.classList.remove('show');
+            }, 3000);
+        }
 
         // ─── PeerJS ──────────────────────────────────────────────────
         function initPeer() {
-            peer = new Peer(undefined, { debug: 0 });
+            state.peer = new Peer(undefined, { debug: 0 });
 
-            peer.on('open', (id) => {
-                myId = id;
-                myPeerId.textContent = id;
-                showError(null);
+            state.peer.on('open', (id) => {
+                state.myId = id;
+                myPeerIdDisplay.textContent = id;
                 console.log('🟢 Peer ready:', id);
             });
 
-            peer.on('connection', (incoming) => {
-                console.log('📥 Incoming connection from:', incoming.peer);
-                conn = incoming;
-                isConnected = true;
+            state.peer.on('connection', (incoming) => {
+                state.conn = incoming;
                 setupConnection();
-
-                if (isHost) {
-                    sendMessage({
+                if (state.isHost) {
+                    // Send initial state to new player
+                    sendToPeer({
                         type: 'init',
-                        players: players,
-                        isHost: true,
-                        hostId: peer.id
+                        players: Object.keys(state.players),
+                        carrots: state.carrots.map(c => ({
+                            x: c.position.x,
+                            z: c.position.z,
+                            collected: c.userData.collected
+                        })),
+                        questProgress: state.questProgress,
+                        questTarget: state.questTarget,
+                        hostId: state.myId,
                     });
-                    statusBox.innerHTML = '🔗 Player connected!';
-                    updateUI();
                 }
-
-                gameArea.classList.add('active');
-                showError(null);
             });
 
-            peer.on('error', (err) => {
-                console.error('❌ Peer error:', err);
-                showError('Peer error: ' + err.message);
-            });
-
-            peer.on('disconnected', () => {
-                statusBox.innerHTML = '⚠️ Disconnected.';
-                isConnected = false;
+            state.peer.on('error', (err) => {
+                console.error('Peer error:', err);
             });
         }
 
-        // ─── Connection Setup ──────────────────────────────────────
         function setupConnection() {
-            conn.on('data', (data) => {
-                handleMessage(data);
+            state.conn.on('data', (data) => {
+                handlePeerMessage(data);
             });
 
-            conn.on('close', () => {
-                console.log('🔴 Connection closed');
-                isConnected = false;
-                statusBox.innerHTML = '🔴 Peer disconnected.';
-                gameArea.classList.remove('active');
-                startGameBtn.style.display = 'none';
-            });
-
-            conn.on('error', (err) => {
-                console.error('❌ Connection error:', err);
-                showError('Connection error: ' + err.message);
+            state.conn.on('close', () => {
+                console.log('🔴 Peer disconnected');
+                // Remove player from UI
+                for (const [id, p] of Object.entries(state.players)) {
+                    if (p.conn === state.conn) {
+                        delete state.players[id];
+                        if (otherPlayers[id]) {
+                            scene.remove(otherPlayers[id]);
+                            delete otherPlayers[id];
+                        }
+                        updatePeerUI();
+                        break;
+                    }
+                }
             });
         }
 
-        // ─── Send Message ──────────────────────────────────────────
-        function sendMessage(msg) {
-            if (conn && conn.open && isConnected) {
-                conn.send(msg);
-                console.log('📤 Sent:', msg);
-            } else {
-                console.warn('⚠️ Cannot send: connection not ready');
+        function sendToPeer(msg) {
+            if (state.conn && state.conn.open) {
+                state.conn.send(msg);
             }
         }
 
-        // ─── Handle Messages ──────────────────────────────────────
-        function handleMessage(data) {
-            console.log('📨 Received:', data);
+        function broadcastToAll(msg) {
+            for (const [id, p] of Object.entries(state.players)) {
+                if (p.conn && p.conn.open) {
+                    p.conn.send(msg);
+                }
+            }
+        }
+
+        function handlePeerMessage(data) {
+            console.log('📨 Received:', data.type);
 
             switch (data.type) {
                 case 'init':
-                    if (data.isHost) {
-                        players = data.players || [];
-                        isHost = false;
-                        isConnected = true;
-                        gameArea.classList.add('active');
-                        statusBox.innerHTML = '👋 Joined game. Waiting for host to start.';
-                        waitingMessage.style.display = 'block';
-                        gameActiveDiv.style.display = 'none';
-                        gameFinishedDiv.style.display = 'none';
-                        startGameBtn.style.display = 'none';
-                        updateUI();
-                        showError(null);
-                    } else {
-                        if (isHost) {
-                            const newPlayer = { id: data.playerName || data.playerId, name: data.playerName || 'Player' };
-                            if (!players.find(p => p.id === newPlayer.id)) {
-                                players.push(newPlayer);
-                            }
-                            sendMessage({
-                                type: 'init',
-                                players: players,
-                                isHost: true,
-                                hostId: peer.id
+                    // Joining a host
+                    state.isHost = false;
+                    state.players = {};
+                    data.players.forEach(id => {
+                        if (id !== state.myId) {
+                            const p = createOtherPlayer(id, 'Player');
+                            otherPlayers[id] = p;
+                            state.players[id] = { conn: state.conn, name: 'Player' };
+                        }
+                    });
+                    // Restore carrots
+                    data.carrots.forEach((c, i) => {
+                        if (i < carrotGroup.children.length) {
+                            carrotGroup.children[i].userData.collected = c.collected;
+                            carrotGroup.children[i].visible = !c.collected;
+                        }
+                    });
+                    state.questProgress = data.questProgress || 0;
+                    state.questTarget = data.questTarget || 5;
+                    updateQuestUI();
+                    updatePeerUI();
+                    connectUI.classList.add('hidden');
+                    break;
+
+                case 'player-move':
+                    const p = otherPlayers[data.id];
+                    if (p) {
+                        p.position.x = data.x;
+                        p.position.z = data.z;
+                        p.position.y = data.y || 0.1;
+                        p.rotation.y = data.rot || 0;
+                        // Animate legs
+                        if (data.walking) {
+                            const legs = p.children.filter(c => c.geometry && c.geometry.type === 'BoxGeometry' && c
+                            .position.y < 0.5);
+                            legs.forEach((leg, i) => {
+                                leg.position.y = 0.18 + Math.sin(Date.now() / 200 + i) * 0.08;
                             });
-                            updateUI();
-                            statusBox.innerHTML = `👥 ${players.length} players connected`;
                         }
                     }
                     break;
 
-                case 'start-game':
-                    number = data.number;
-                    gameActive = true;
-                    gameFinished = false;
-                    guesses = [];
-                    waitingMessage.style.display = 'none';
-                    gameActiveDiv.style.display = 'block';
-                    gameFinishedDiv.style.display = 'none';
-                    startGameBtn.style.display = 'none';
-                    guessCount.textContent = '0';
-                    remainingGuesses.textContent = '10';
-                    guessHistory.innerHTML = '';
-                    guessInput.disabled = false;
-                    guessBtn.disabled = false;
-                    statusBox.innerHTML = '🎮 Game started! Guess the number.';
-                    updateUI();
-                    break;
-
-                case 'guess':
-                    // ✅ Only add if it's NOT our own guess (avoid duplication)
-                    if (data.playerId !== myId) {
-                        const entry = {
-                            player: data.player,
-                            guess: data.guess,
-                            feedback: data.feedback,
-                        };
-                        guesses.push(entry);
-                        addGuessToHistory(entry);
-                        guessCount.textContent = guesses.length;
-                        remainingGuesses.textContent = 10 - guesses.length;
-
-                        if (data.feedback === 'winner') {
-                            gameActive = false;
-                            gameFinished = true;
-                            gameActiveDiv.style.display = 'none';
-                            gameFinishedDiv.style.display = 'block';
-                            winnerName.textContent = data.player;
-                            winningNumber.textContent = number;
-                            statusBox.innerHTML = '🏆 Game finished!';
-                            guessInput.disabled = true;
-                            guessBtn.disabled = true;
-                            startGameBtn.style.display = 'none';
+                case 'carrot-collected':
+                    const carrotIdx = data.index;
+                    if (carrotIdx < carrotGroup.children.length) {
+                        const carrot = carrotGroup.children[carrotIdx];
+                        if (!carrot.userData.collected) {
+                            carrot.userData.collected = true;
+                            carrot.visible = false;
+                            state.carrotsCollected++;
+                            state.questProgress++;
+                            updateQuestUI();
+                            showMessage('🥕 +1 Carrot!', `${state.questProgress} / ${state.questTarget}`);
+                            // Broadcast to others
+                            broadcastToAll({
+                                type: 'carrot-collected',
+                                index: carrotIdx,
+                                by: state.myId,
+                            });
                         }
-                        updateUI();
                     }
                     break;
 
-                case 'state-sync':
-                    if (data.players) players = data.players;
-                    if (data.guesses) guesses = data.guesses;
-                    if (data.number) number = data.number;
-                    if (data.gameActive !== undefined) gameActive = data.gameActive;
-                    if (data.gameFinished !== undefined) gameFinished = data.gameFinished;
-                    updateUI();
+                case 'quest-update':
+                    state.questProgress = data.progress;
+                    state.questTarget = data.target;
+                    updateQuestUI();
                     break;
             }
         }
 
-        // ─── UI Updates ─────────────────────────────────────────────
-        function updateUI() {
-            playerList.innerHTML = players.map(p =>
-                `<span class="player-tag ${p.id === peer?.id ? 'host' : ''}">${p.name} ${p.id === peer?.id ? '👑' : ''}</span>`
-            ).join('');
+        // ─── Game Loop ──────────────────────────────────────────────
+        const clock = new THREE.Clock();
+        let walkTime = 0;
 
-            if (isHost && !gameActive && !gameFinished) {
-                if (players.length >= 2) {
-                    startGameBtn.style.display = 'block';
-                    startGameBtn.textContent = `🚀 Start Game (${players.length} players)`;
+        function animate() {
+            const delta = Math.min(clock.getDelta(), 0.05);
+            const time = clock.elapsedTime;
+
+            // ── Player Movement ──
+            const forward = new THREE.Vector3(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
+            const right = new THREE.Vector3(Math.cos(state.yaw), 0, -Math.sin(state.yaw));
+
+            const moveX = (state.keys.d ? 1 : 0) - (state.keys.a ? 1 : 0);
+            const moveZ = (state.keys.s ? 1 : 0) - (state.keys.w ? 1 : 0);
+
+            const moveVec = new THREE.Vector3();
+            moveVec.addScaledVector(right, moveX);
+            moveVec.addScaledVector(forward, moveZ);
+            if (moveVec.length() > 0) {
+                moveVec.normalize().multiplyScalar(state.playerSpeed * delta);
+                state.velocity.x = moveVec.x;
+                state.velocity.z = moveVec.z;
+            } else {
+                state.velocity.x *= 0.9;
+                state.velocity.z *= 0.9;
+            }
+
+            // Gravity
+            state.velocity.y += state.gravity * delta;
+
+            // Apply velocity
+            playerGroup.position.x += state.velocity.x;
+            playerGroup.position.y += state.velocity.y;
+            playerGroup.position.z += state.velocity.z;
+
+            // Ground collision
+            if (playerGroup.position.y <= 0.1) {
+                playerGroup.position.y = 0.1;
+                state.velocity.y = 0;
+                state.isGrounded = true;
+            }
+
+            // Rotation
+            if (moveVec.length() > 0.01) {
+                const targetRot = Math.atan2(moveVec.x, moveVec.z);
+                let diff = targetRot - state.yaw;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                state.yaw += diff * 0.1;
+                playerGroup.rotation.y = state.yaw;
+            }
+
+            // Walk animation
+            const isWalking = Math.abs(state.velocity.x) > 0.01 || Math.abs(state.velocity.z) > 0.01;
+            if (isWalking) {
+                walkTime += delta * 8;
+                const legs = playerGroup.children.filter(c =>
+                    c.geometry && c.geometry.type === 'BoxGeometry' &&
+                    c.position.y < 0.5 && c.position.y > 0.1
+                );
+                legs.forEach((leg, i) => {
+                    leg.position.y = 0.2 + Math.sin(walkTime + i * 0.5) * 0.08;
+                });
+            } else {
+                const legs = playerGroup.children.filter(c =>
+                    c.geometry && c.geometry.type === 'BoxGeometry' &&
+                    c.position.y < 0.5 && c.position.y > 0.1
+                );
+                legs.forEach((leg) => {
+                    leg.position.y = 0.2;
+                });
+            }
+
+            // Tail wag
+            const tailObj = playerGroup.children.find(c => c.userData && c.userData.baseRot !== undefined);
+            if (tailObj) {
+                tailObj.rotation.x = tailObj.userData.baseRot + Math.sin(time * 2) * 0.2;
+            }
+
+            // ── Camera ──
+            const camOffset = new THREE.Vector3(0, 4, 7);
+            camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
+            camOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), state.pitch);
+
+            camera.position.copy(playerGroup.position).add(camOffset);
+            camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+
+            // ── Water animation ──
+            water.position.y = 0.2 + Math.sin(time * 0.5) * 0.05;
+
+            // ── Carrot glow animation ──
+            carrotGroup.children.forEach((c, i) => {
+                if (!c.userData.collected) {
+                    c.position.y = 0.1 + Math.sin(time * 2 + i) * 0.05;
+                    c.rotation.y += delta * 0.5;
+                    const glow = c.children.find(ch => ch.material && ch.material.opacity !== undefined);
+                    if (glow) {
+                        glow.material.opacity = 0.1 + Math.sin(time * 1.5 + i) * 0.05;
+                    }
+                }
+            });
+
+            // ── Carrot collision ──
+            if (!state.questComplete) {
+                carrotGroup.children.forEach((carrot, index) => {
+                    if (carrot.userData.collected) return;
+                    const dx = playerGroup.position.x - carrot.position.x;
+                    const dz = playerGroup.position.z - carrot.position.z;
+                    if (dx * dx + dz * dz < 0.8) {
+                        carrot.userData.collected = true;
+                        carrot.visible = false;
+                        state.carrotsCollected++;
+                        state.questProgress++;
+                        updateQuestUI();
+                        showMessage('🥕 +1 Carrot!', `${state.questProgress} / ${state.questTarget}`);
+                        // Broadcast to others
+                        if (state.isHost) {
+                            broadcastToAll({
+                                type: 'carrot-collected',
+                                index: index,
+                                by: state.myId,
+                            });
+                        } else {
+                            sendToPeer({
+                                type: 'carrot-collected',
+                                index: index,
+                            });
+                        }
+                    }
+                });
+            }
+
+            // ── Send position to peers ──
+            if (state.conn && state.conn.open) {
+                const msg = {
+                    type: 'player-move',
+                    id: state.myId,
+                    x: playerGroup.position.x,
+                    y: playerGroup.position.y,
+                    z: playerGroup.position.z,
+                    rot: state.yaw,
+                    walking: isWalking,
+                };
+                if (state.isHost) {
+                    broadcastToAll(msg);
                 } else {
-                    startGameBtn.style.display = 'none';
+                    sendToPeer(msg);
                 }
-            } else {
-                startGameBtn.style.display = 'none';
             }
 
-            if (isHost && !gameActive && !gameFinished) {
-                waitingMessage.textContent = players.length < 2 ?
-                    'Waiting for players to join...' :
-                    'Ready to start! Click "Start Game" below.';
-            }
+            // ── Render ──
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
 
-        function addGuessToHistory(entry) {
-            const div = document.createElement('div');
-            div.className = 'guess-entry';
-            const cls = entry.feedback === 'too-high' ? 'too-high' :
-                entry.feedback === 'too-low' ? 'too-low' : 'winner';
-            const label = entry.feedback === 'too-high' ? '⬆️ Too high' :
-                entry.feedback === 'too-low' ? '⬇️ Too low' : '🎯 WINNER!';
-            div.innerHTML =
-                `<span class="name">${entry.player}</span><span class="guess ${cls}">${entry.guess} — ${label}</span>`;
-            guessHistory.appendChild(div);
-            guessHistory.scrollTop = guessHistory.scrollHeight;
-        }
-
-        // ─── Show Error ─────────────────────────────────────────────
-        function showError(msg) {
-            if (msg) {
-                error.textContent = msg;
-                error.classList.add('visible');
-            } else {
-                error.classList.remove('visible');
+        // ─── UI Updates ──────────────────────────────────────────────
+        function updatePeerUI() {
+            const count = Object.keys(state.players).length + 1;
+            playerCountBadge.textContent = `👤 ${count}`;
+            peerList.innerHTML = `<div class="peer-item">You ${state.isHost ? '👑' : ''}</div>`;
+            for (const [id, p] of Object.entries(state.players)) {
+                const el = document.createElement('div');
+                el.className = 'peer-item';
+                el.textContent = `🔗 ${p.name || 'Player'}`;
+                peerList.appendChild(el);
             }
         }
 
-        // ─── Host Game ──────────────────────────────────────────────
-        function hostGame() {
-            const name = prompt('Enter your name:', 'Host') || 'Host';
-            playerName = name;
-            isHost = true;
-            players = [{ id: peer.id, name: playerName }];
-            gameArea.classList.add('active');
-            statusBox.innerHTML = '👑 You are the host. Share your Peer ID with others.';
-            waitingMessage.style.display = 'block';
-            waitingMessage.textContent = 'Waiting for players to join...';
-            gameActiveDiv.style.display = 'none';
-            gameFinishedDiv.style.display = 'none';
-            startGameBtn.style.display = 'none';
-            updateUI();
-            showError(null);
+        // ─── Connect UI ──────────────────────────────────────────────
+        hostBtn.addEventListener('click', () => {
+            state.isHost = true;
+            initPeer();
+            state.players = {};
+            connectUI.classList.add('hidden');
+            updatePeerUI();
+            updateQuestUI();
 
-            peer.on('connection', (incoming) => {
-                if (conn && conn.open) {
-                    conn.close();
-                }
-                conn = incoming;
-                isConnected = true;
+            // Listen for incoming connections
+            state.peer.on('connection', (incoming) => {
+                state.conn = incoming;
                 setupConnection();
-                sendMessage({
+                const id = incoming.peer;
+                const p = createOtherPlayer(id, 'Player');
+                otherPlayers[id] = p;
+                state.players[id] = { conn: incoming, name: 'Player' };
+                updatePeerUI();
+                // Send initial state
+                sendToPeer({
                     type: 'init',
-                    players: players,
-                    isHost: true,
-                    hostId: peer.id
+                    players: Object.keys(state.players),
+                    carrots: state.carrots.map(c => ({
+                        x: c.position.x,
+                        z: c.position.z,
+                        collected: c.userData.collected
+                    })),
+                    questProgress: state.questProgress,
+                    questTarget: state.questTarget,
+                    hostId: state.myId,
                 });
-                statusBox.innerHTML = '🔗 Player connected!';
-                updateUI();
             });
-        }
+        });
 
-        // ─── Start Game (Host) ──────────────────────────────────────
-        function startGame() {
-            if (!isHost || players.length < 2) {
-                showError('Need at least 2 players to start.');
-                return;
-            }
-            number = Math.floor(Math.random() * 100) + 1;
-            gameActive = true;
-            gameFinished = false;
-            guesses = [];
-            sendMessage({ type: 'start-game', number: number });
-            waitingMessage.style.display = 'none';
-            gameActiveDiv.style.display = 'block';
-            gameFinishedDiv.style.display = 'none';
-            startGameBtn.style.display = 'none';
-            guessCount.textContent = '0';
-            remainingGuesses.textContent = '10';
-            guessHistory.innerHTML = '';
-            guessInput.disabled = false;
-            guessBtn.disabled = false;
-            statusBox.innerHTML = '🎮 Game started! Guess the number.';
-            updateUI();
-            showError(null);
-        }
-
-        // ─── Make Guess ─────────────────────────────────────────────
-        function makeGuess() {
-            if (!gameActive) {
-                showError('Game not active.');
-                return;
-            }
-            if (!isConnected) {
-                showError('Not connected to peer.');
-                return;
-            }
-            const val = parseInt(guessInput.value);
-            if (isNaN(val) || val < 1 || val > 100) {
-                showError('Guess must be between 1 and 100.');
-                return;
-            }
-
-            const feedback = val === number ? 'winner' : (val < number ? 'too-low' : 'too-high');
-
-            const entry = {
-                player: playerName,
-                guess: val,
-                feedback: feedback,
-            };
-            guesses.push(entry);
-            addGuessToHistory(entry);
-            guessCount.textContent = guesses.length;
-            remainingGuesses.textContent = 10 - guesses.length;
-
-            // ✅ Send guess with unique player ID to prevent duplication
-            sendMessage({
-                type: 'guess',
-                player: playerName,
-                playerId: myId,
-                guess: val,
-                feedback: feedback
-            });
-
-            if (feedback === 'winner') {
-                gameActive = false;
-                gameFinished = true;
-                gameActiveDiv.style.display = 'none';
-                gameFinishedDiv.style.display = 'block';
-                winnerName.textContent = playerName;
-                winningNumber.textContent = number;
-                statusBox.innerHTML = '🏆 You won!';
-                guessInput.disabled = true;
-                guessBtn.disabled = true;
-                startGameBtn.style.display = 'none';
-            } else {
-                guessInput.value = '';
-                guessInput.focus();
-            }
-            updateUI();
-            showError(null);
-        }
-
-        // ─── Connect to Peer ────────────────────────────────────────
-        function connectToPeer() {
-            const targetId = peerInput.value.trim();
+        joinBtn.addEventListener('click', () => {
+            const targetId = peerIdInput.value.trim();
             if (!targetId) {
-                showError('Enter a Peer ID.');
+                alert('Please enter a Peer ID to join.');
                 return;
             }
-            if (!peer) {
-                showError('Peer not initialized.');
-                return;
-            }
+            state.isHost = false;
+            initPeer();
 
-            if (conn && conn.open) {
-                conn.close();
-            }
-
-            showError(null);
-            statusBox.innerHTML = '🔗 Connecting to ' + targetId + '...';
-            gameArea.classList.add('active');
-
-            conn = peer.connect(targetId, { reliable: true });
-            isConnected = true;
-            setupConnection();
-
-            setTimeout(() => {
-                sendMessage({
-                    type: 'init',
-                    playerName: playerName,
-                    playerId: peer.id
-                });
-            }, 500);
-        }
-
-        // ─── Event Listeners ──────────────────────────────────────
-        connectBtn.addEventListener('click', connectToPeer);
-        hostBtn.addEventListener('click', hostGame);
-        startGameBtn.addEventListener('click', startGame);
-        guessBtn.addEventListener('click', makeGuess);
-        guessInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') makeGuess();
-        });
-        peerInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') connectToPeer();
+            state.peer.on('open', () => {
+                state.conn = state.peer.connect(targetId, { reliable: true });
+                setupConnection();
+                connectUI.classList.add('hidden');
+                updatePeerUI();
+                updateQuestUI();
+            });
         });
 
-        // ─── Init ────────────────────────────────────────────────────
-        initPeer();
+        // ─── Start ──────────────────────────────────────────────────
+        animate();
+        updateQuestUI();
 
-        console.log('🫏 Guess the Number — P2P Ready');
+        console.log('🫏 Donkey Quest — 3D Multiplayer Ready');
     </script>
 
 </body>
