@@ -7,12 +7,12 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
     </script>
     <style>
+        /* same as before */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
             background: #0f0f1a;
@@ -23,7 +23,6 @@
             min-height: 100vh;
             padding: 20px;
         }
-
         .container {
             background: #1a1a2e;
             border-radius: 20px;
@@ -33,7 +32,6 @@
             border: 1px solid #2a2a4a;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
-
         h1 {
             font-size: 28px;
             text-align: center;
@@ -42,20 +40,17 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
         .sub {
             text-align: center;
             color: #666;
             font-size: 13px;
             margin-bottom: 20px;
         }
-
         .input-group {
             display: flex;
             gap: 10px;
             margin-bottom: 12px;
         }
-
         .input-group input {
             flex: 1;
             padding: 12px 16px;
@@ -66,11 +61,9 @@
             font-size: 14px;
             outline: none;
         }
-
         .input-group input:focus {
             border-color: #e94560;
         }
-
         .input-group button {
             padding: 12px 20px;
             border: none;
@@ -81,16 +74,9 @@
             cursor: pointer;
             transition: transform 0.1s;
         }
-
         .input-group button:hover {
             transform: scale(1.02);
         }
-
-        .input-group button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
         .peer-id-box {
             background: #0f0f1a;
             padding: 10px 14px;
@@ -102,12 +88,10 @@
             word-break: break-all;
             margin-bottom: 16px;
         }
-
         .peer-id-box span {
             color: #fff;
             font-weight: 600;
         }
-
         .game-area {
             margin-top: 16px;
             padding: 16px;
@@ -116,17 +100,14 @@
             border: 1px solid #1a1a3a;
             display: none;
         }
-
         .game-area.active {
             display: block;
         }
-
         .guess-input {
             display: flex;
             gap: 10px;
             margin-top: 12px;
         }
-
         .guess-input input {
             flex: 1;
             padding: 12px 16px;
@@ -137,7 +118,6 @@
             font-size: 16px;
             outline: none;
         }
-
         .guess-input button {
             padding: 12px 20px;
             border: none;
@@ -147,13 +127,11 @@
             font-weight: 600;
             cursor: pointer;
         }
-
         .guess-history {
             margin-top: 12px;
             max-height: 150px;
             overflow-y: auto;
         }
-
         .guess-entry {
             display: flex;
             justify-content: space-between;
@@ -162,7 +140,6 @@
             font-size: 13px;
             color: #aaa;
         }
-
         .guess-entry .name {
             color: #fff;
         }
@@ -175,7 +152,6 @@
         .guess-entry .winner {
             color: #fbbf24;
         }
-
         .status-box {
             text-align: center;
             padding: 12px;
@@ -186,12 +162,6 @@
             color: #aaa;
             margin-bottom: 12px;
         }
-
-        .status-box .highlight {
-            color: #fff;
-            font-weight: 600;
-        }
-
         .error {
             color: #e94560;
             font-size: 13px;
@@ -202,11 +172,9 @@
             margin-top: 8px;
             display: none;
         }
-
         .error.visible {
             display: block;
         }
-
         .winner-announce {
             text-align: center;
             padding: 16px;
@@ -214,20 +182,17 @@
             border-radius: 12px;
             margin-top: 12px;
         }
-
         .winner-announce .big {
             font-size: 28px;
             font-weight: 700;
             color: #fbbf24;
         }
-
         .player-list {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
             margin-bottom: 12px;
         }
-
         .player-tag {
             background: #1a1a3a;
             padding: 4px 12px;
@@ -235,12 +200,10 @@
             font-size: 12px;
             color: #aaa;
         }
-
         .player-tag.host {
             border: 1px solid #fbbf24;
             color: #fbbf24;
         }
-
         .start-btn {
             width: 100%;
             margin-top: 12px;
@@ -253,9 +216,7 @@
             cursor: pointer;
             font-size: 15px;
             display: none;
-            transition: opacity 0.2s;
         }
-
         .start-btn:hover {
             opacity: 0.9;
         }
@@ -283,10 +244,7 @@
         <div class="error" id="error"></div>
 
         <div class="game-area" id="gameArea">
-            <div class="status-box" id="statusBox">
-                Waiting for host to start...
-            </div>
-
+            <div class="status-box" id="statusBox">Waiting for host to start...</div>
             <div class="player-list" id="playerList"></div>
 
             <div id="gameContent">
@@ -299,12 +257,10 @@
                         <span>Guesses: <span id="guessCount">0</span></span>
                         <span>Remaining: <span id="remainingGuesses">10</span></span>
                     </div>
-
                     <div class="guess-input">
                         <input type="number" id="guessInput" min="1" max="100" placeholder="Your guess..." />
                         <button id="guessBtn">Guess</button>
                     </div>
-
                     <div class="guess-history" id="guessHistory"></div>
                 </div>
 
@@ -333,6 +289,7 @@
         let players = [];
         let playerName = 'Player';
         let isConnected = false;
+        let myId = null;
 
         // ─── DOM ────────────────────────────────────────────────────
         const myPeerId = document.getElementById('myPeerId');
@@ -360,6 +317,7 @@
             peer = new Peer(undefined, { debug: 0 });
 
             peer.on('open', (id) => {
+                myId = id;
                 myPeerId.textContent = id;
                 showError(null);
                 console.log('🟢 Peer ready:', id);
@@ -371,7 +329,6 @@
                 isConnected = true;
                 setupConnection();
 
-                // ✅ Host sends init immediately
                 if (isHost) {
                     sendMessage({
                         type: 'init',
@@ -435,7 +392,6 @@
             switch (data.type) {
                 case 'init':
                     if (data.isHost) {
-                        // ✅ Guest receives host state
                         players = data.players || [];
                         isHost = false;
                         isConnected = true;
@@ -448,13 +404,11 @@
                         updateUI();
                         showError(null);
                     } else {
-                        // ✅ Host receives guest info
                         if (isHost) {
                             const newPlayer = { id: data.playerName || data.playerId, name: data.playerName || 'Player' };
                             if (!players.find(p => p.id === newPlayer.id)) {
                                 players.push(newPlayer);
                             }
-                            // ✅ Send updated player list back to guest
                             sendMessage({
                                 type: 'init',
                                 players: players,
@@ -486,29 +440,32 @@
                     break;
 
                 case 'guess':
-                    const entry = {
-                        player: data.player,
-                        guess: data.guess,
-                        feedback: data.feedback,
-                    };
-                    guesses.push(entry);
-                    addGuessToHistory(entry);
-                    guessCount.textContent = guesses.length;
-                    remainingGuesses.textContent = 10 - guesses.length;
+                    // ✅ Only add if it's NOT our own guess (avoid duplication)
+                    if (data.playerId !== myId) {
+                        const entry = {
+                            player: data.player,
+                            guess: data.guess,
+                            feedback: data.feedback,
+                        };
+                        guesses.push(entry);
+                        addGuessToHistory(entry);
+                        guessCount.textContent = guesses.length;
+                        remainingGuesses.textContent = 10 - guesses.length;
 
-                    if (data.feedback === 'winner') {
-                        gameActive = false;
-                        gameFinished = true;
-                        gameActiveDiv.style.display = 'none';
-                        gameFinishedDiv.style.display = 'block';
-                        winnerName.textContent = data.player;
-                        winningNumber.textContent = number;
-                        statusBox.innerHTML = '🏆 Game finished!';
-                        guessInput.disabled = true;
-                        guessBtn.disabled = true;
-                        startGameBtn.style.display = 'none';
+                        if (data.feedback === 'winner') {
+                            gameActive = false;
+                            gameFinished = true;
+                            gameActiveDiv.style.display = 'none';
+                            gameFinishedDiv.style.display = 'block';
+                            winnerName.textContent = data.player;
+                            winningNumber.textContent = number;
+                            statusBox.innerHTML = '🏆 Game finished!';
+                            guessInput.disabled = true;
+                            guessBtn.disabled = true;
+                            startGameBtn.style.display = 'none';
+                        }
+                        updateUI();
                     }
-                    updateUI();
                     break;
 
                 case 'state-sync':
@@ -524,12 +481,10 @@
 
         // ─── UI Updates ─────────────────────────────────────────────
         function updateUI() {
-            // Players list
             playerList.innerHTML = players.map(p =>
                 `<span class="player-tag ${p.id === peer?.id ? 'host' : ''}">${p.name} ${p.id === peer?.id ? '👑' : ''}</span>`
             ).join('');
 
-            // Start button for host
             if (isHost && !gameActive && !gameFinished) {
                 if (players.length >= 2) {
                     startGameBtn.style.display = 'block';
@@ -541,7 +496,6 @@
                 startGameBtn.style.display = 'none';
             }
 
-            // Update waiting message
             if (isHost && !gameActive && !gameFinished) {
                 waitingMessage.textContent = players.length < 2 ?
                     'Waiting for players to join...' :
@@ -588,16 +542,13 @@
             updateUI();
             showError(null);
 
-            // ✅ Re-bind connection listener to handle multiple players
             peer.on('connection', (incoming) => {
                 if (conn && conn.open) {
-                    // If we already have a connection, close the old one
                     conn.close();
                 }
                 conn = incoming;
                 isConnected = true;
                 setupConnection();
-                // Send init immediately
                 sendMessage({
                     type: 'init',
                     players: players,
@@ -662,7 +613,14 @@
             guessCount.textContent = guesses.length;
             remainingGuesses.textContent = 10 - guesses.length;
 
-            sendMessage({ type: 'guess', player: playerName, guess: val, feedback: feedback });
+            // ✅ Send guess with unique player ID to prevent duplication
+            sendMessage({
+                type: 'guess',
+                player: playerName,
+                playerId: myId,
+                guess: val,
+                feedback: feedback
+            });
 
             if (feedback === 'winner') {
                 gameActive = false;
@@ -707,7 +665,6 @@
             isConnected = true;
             setupConnection();
 
-            // ✅ Send join message immediately after connection
             setTimeout(() => {
                 sendMessage({
                     type: 'init',
