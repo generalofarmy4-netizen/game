@@ -332,6 +332,7 @@
         let guesses = [];
         let players = [];
         let playerName = 'Player';
+        let isConnected = false;
 
         // ─── DOM ────────────────────────────────────────────────────
         const myPeerId = document.getElementById('myPeerId');
@@ -361,28 +362,39 @@
             peer.on('open', (id) => {
                 myPeerId.textContent = id;
                 showError(null);
+                console.log('🟢 Peer ready:', id);
             });
 
             peer.on('connection', (incoming) => {
+                console.log('📥 Incoming connection from:', incoming.peer);
                 conn = incoming;
+                isConnected = true;
                 setupConnection();
-                showError(null);
-                statusBox.innerHTML = '🔗 Connected to peer.';
-                gameArea.classList.add('active');
 
+                // ✅ Host sends init immediately
                 if (isHost) {
-                    // Auto-send host init when someone connects
-                    sendMessage({ type: 'init', players: players, isHost: true });
+                    sendMessage({
+                        type: 'init',
+                        players: players,
+                        isHost: true,
+                        hostId: peer.id
+                    });
+                    statusBox.innerHTML = '🔗 Player connected!';
                     updateUI();
                 }
+
+                gameArea.classList.add('active');
+                showError(null);
             });
 
             peer.on('error', (err) => {
+                console.error('❌ Peer error:', err);
                 showError('Peer error: ' + err.message);
             });
 
             peer.on('disconnected', () => {
                 statusBox.innerHTML = '⚠️ Disconnected.';
+                isConnected = false;
             });
         }
 
@@ -393,21 +405,26 @@
             });
 
             conn.on('close', () => {
+                console.log('🔴 Connection closed');
+                isConnected = false;
                 statusBox.innerHTML = '🔴 Peer disconnected.';
                 gameArea.classList.remove('active');
                 startGameBtn.style.display = 'none';
             });
 
-            // If we're joining, send our name
-            if (!isHost) {
-                sendMessage({ type: 'init', playerName: playerName });
-            }
+            conn.on('error', (err) => {
+                console.error('❌ Connection error:', err);
+                showError('Connection error: ' + err.message);
+            });
         }
 
         // ─── Send Message ──────────────────────────────────────────
         function sendMessage(msg) {
-            if (conn && conn.open) {
+            if (conn && conn.open && isConnected) {
                 conn.send(msg);
+                console.log('📤 Sent:', msg);
+            } else {
+                console.warn('⚠️ Cannot send: connection not ready');
             }
         }
 
@@ -418,24 +435,34 @@
             switch (data.type) {
                 case 'init':
                     if (data.isHost) {
-                        // Joining a host
+                        // ✅ Guest receives host state
                         players = data.players || [];
                         isHost = false;
-                        updateUI();
+                        isConnected = true;
+                        gameArea.classList.add('active');
                         statusBox.innerHTML = '👋 Joined game. Waiting for host to start.';
                         waitingMessage.style.display = 'block';
                         gameActiveDiv.style.display = 'none';
                         gameFinishedDiv.style.display = 'none';
                         startGameBtn.style.display = 'none';
+                        updateUI();
+                        showError(null);
                     } else {
-                        // Someone joined us (we're host)
+                        // ✅ Host receives guest info
                         if (isHost) {
-                            const newPlayer = { id: data.playerName, name: data.playerName };
+                            const newPlayer = { id: data.playerName || data.playerId, name: data.playerName || 'Player' };
                             if (!players.find(p => p.id === newPlayer.id)) {
                                 players.push(newPlayer);
                             }
+                            // ✅ Send updated player list back to guest
+                            sendMessage({
+                                type: 'init',
+                                players: players,
+                                isHost: true,
+                                hostId: peer.id
+                            });
                             updateUI();
-                            broadcastState();
+                            statusBox.innerHTML = `👥 ${players.length} players connected`;
                         }
                     }
                     break;
@@ -455,7 +482,7 @@
                     guessInput.disabled = false;
                     guessBtn.disabled = false;
                     statusBox.innerHTML = '🎮 Game started! Guess the number.';
-                    broadcastState();
+                    updateUI();
                     break;
 
                 case 'guess':
@@ -481,6 +508,7 @@
                         guessBtn.disabled = true;
                         startGameBtn.style.display = 'none';
                     }
+                    updateUI();
                     break;
 
                 case 'state-sync':
@@ -492,18 +520,6 @@
                     updateUI();
                     break;
             }
-        }
-
-        // ─── Broadcast State ───────────────────────────────────────
-        function broadcastState() {
-            sendMessage({
-                type: 'state-sync',
-                players: players,
-                guesses: guesses,
-                number: number,
-                gameActive: gameActive,
-                gameFinished: gameFinished,
-            });
         }
 
         // ─── UI Updates ─────────────────────────────────────────────
@@ -570,18 +586,35 @@
             gameFinishedDiv.style.display = 'none';
             startGameBtn.style.display = 'none';
             updateUI();
+            showError(null);
 
-            // Listen for incoming connections
+            // ✅ Re-bind connection listener to handle multiple players
             peer.on('connection', (incoming) => {
+                if (conn && conn.open) {
+                    // If we already have a connection, close the old one
+                    conn.close();
+                }
                 conn = incoming;
+                isConnected = true;
                 setupConnection();
+                // Send init immediately
+                sendMessage({
+                    type: 'init',
+                    players: players,
+                    isHost: true,
+                    hostId: peer.id
+                });
                 statusBox.innerHTML = '🔗 Player connected!';
+                updateUI();
             });
         }
 
         // ─── Start Game (Host) ──────────────────────────────────────
         function startGame() {
-            if (!isHost || players.length < 2) return;
+            if (!isHost || players.length < 2) {
+                showError('Need at least 2 players to start.');
+                return;
+            }
             number = Math.floor(Math.random() * 100) + 1;
             gameActive = true;
             gameFinished = false;
@@ -597,12 +630,20 @@
             guessInput.disabled = false;
             guessBtn.disabled = false;
             statusBox.innerHTML = '🎮 Game started! Guess the number.';
-            broadcastState();
+            updateUI();
+            showError(null);
         }
 
         // ─── Make Guess ─────────────────────────────────────────────
         function makeGuess() {
-            if (!gameActive) return;
+            if (!gameActive) {
+                showError('Game not active.');
+                return;
+            }
+            if (!isConnected) {
+                showError('Not connected to peer.');
+                return;
+            }
             const val = parseInt(guessInput.value);
             if (isNaN(val) || val < 1 || val > 100) {
                 showError('Guess must be between 1 and 100.');
@@ -638,8 +679,8 @@
                 guessInput.value = '';
                 guessInput.focus();
             }
-
-            broadcastState();
+            updateUI();
+            showError(null);
         }
 
         // ─── Connect to Peer ────────────────────────────────────────
@@ -654,11 +695,26 @@
                 return;
             }
 
-            conn = peer.connect(targetId);
-            setupConnection();
-            statusBox.innerHTML = '🔗 Connecting...';
-            gameArea.classList.add('active');
+            if (conn && conn.open) {
+                conn.close();
+            }
+
             showError(null);
+            statusBox.innerHTML = '🔗 Connecting to ' + targetId + '...';
+            gameArea.classList.add('active');
+
+            conn = peer.connect(targetId, { reliable: true });
+            isConnected = true;
+            setupConnection();
+
+            // ✅ Send join message immediately after connection
+            setTimeout(() => {
+                sendMessage({
+                    type: 'init',
+                    playerName: playerName,
+                    playerId: peer.id
+                });
+            }, 500);
         }
 
         // ─── Event Listeners ──────────────────────────────────────
