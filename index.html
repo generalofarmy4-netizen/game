@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🫏 Guess the Number</title>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <title>🫏 Guess the Number — P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,6 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
             padding: 20px;
         }
 
@@ -28,33 +27,32 @@
             background: #1a1a2e;
             border-radius: 20px;
             padding: 30px;
-            max-width: 600px;
+            max-width: 500px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
             border: 1px solid #2a2a4a;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
 
         h1 {
             font-size: 28px;
-            font-weight: 700;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
             background: linear-gradient(135deg, #e94560, #0ea5e9);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .subtitle {
+        .sub {
             text-align: center;
-            color: #888;
-            font-size: 14px;
-            margin-bottom: 24px;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 20px;
         }
 
         .input-group {
             display: flex;
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .input-group input {
@@ -66,7 +64,6 @@
             color: #fff;
             font-size: 14px;
             outline: none;
-            transition: border 0.2s;
         }
 
         .input-group input:focus {
@@ -74,86 +71,47 @@
         }
 
         .input-group button {
-            padding: 12px 24px;
+            padding: 12px 20px;
             border: none;
             border-radius: 12px;
             background: linear-gradient(135deg, #e94560, #0ea5e9);
             color: #fff;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
+            transition: transform 0.1s;
         }
 
         .input-group button:hover {
             transform: scale(1.02);
-            opacity: 0.9;
         }
 
         .input-group button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
-            transform: none;
         }
 
-        .room-list {
-            margin-top: 20px;
-        }
-
-        .room-item {
+        .peer-id-box {
             background: #0f0f1a;
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: 12px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             border: 1px solid #1a1a3a;
-            cursor: pointer;
-            transition: background 0.2s, border 0.2s;
-        }
-
-        .room-item:hover {
-            background: #1a1a3a;
-            border-color: #e94560;
-        }
-
-        .room-item .code {
-            font-weight: 600;
-            font-size: 16px;
-            color: #fff;
-        }
-
-        .room-item .info {
-            color: #888;
+            text-align: center;
             font-size: 13px;
+            color: #aaa;
+            word-break: break-all;
+            margin-bottom: 16px;
         }
 
-        .room-item .status {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
+        .peer-id-box span {
+            color: #fff;
             font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status.waiting {
-            background: #1a3a2a;
-            color: #4ade80;
-        }
-        .status.playing {
-            background: #3a1a2a;
-            color: #e94560;
-        }
-        .status.finished {
-            background: #1a1a3a;
-            color: #888;
         }
 
         .game-area {
-            margin-top: 20px;
-            padding: 20px;
+            margin-top: 16px;
+            padding: 16px;
             background: #0f0f1a;
-            border-radius: 16px;
+            border-radius: 12px;
             border: 1px solid #1a1a3a;
             display: none;
         }
@@ -162,22 +120,10 @@
             display: block;
         }
 
-        .game-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            font-size: 14px;
-            color: #aaa;
-        }
-
-        .game-info span {
-            color: #fff;
-            font-weight: 600;
-        }
-
         .guess-input {
             display: flex;
             gap: 10px;
+            margin-top: 12px;
         }
 
         .guess-input input {
@@ -191,27 +137,18 @@
             outline: none;
         }
 
-        .guess-input input:focus {
-            border-color: #e94560;
-        }
-
         .guess-input button {
-            padding: 12px 24px;
+            padding: 12px 20px;
             border: none;
             border-radius: 12px;
             background: #e94560;
             color: #fff;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        .guess-input button:hover {
-            transform: scale(1.02);
         }
 
         .guess-history {
-            margin-top: 16px;
+            margin-top: 12px;
             max-height: 150px;
             overflow-y: auto;
         }
@@ -228,10 +165,6 @@
         .guess-entry .name {
             color: #fff;
         }
-
-        .guess-entry .guess {
-            font-weight: 600;
-        }
         .guess-entry .too-high {
             color: #e94560;
         }
@@ -242,35 +175,52 @@
             color: #fbbf24;
         }
 
-        .winner-announce {
+        .status-box {
             text-align: center;
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(14, 165, 233, 0.2));
-            border-radius: 16px;
-            margin-top: 16px;
+            padding: 12px;
+            background: rgba(14, 165, 233, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 12px;
         }
 
-        .winner-announce .big {
-            font-size: 32px;
-            font-weight: 700;
-            color: #fbbf24;
-        }
-
-        .hidden {
-            display: none !important;
+        .status-box .highlight {
+            color: #fff;
+            font-weight: 600;
         }
 
         .error {
             color: #e94560;
             font-size: 13px;
-            margin-top: 8px;
             padding: 8px 12px;
             background: rgba(233, 69, 96, 0.1);
             border-radius: 8px;
             border: 1px solid rgba(233, 69, 96, 0.2);
+            margin-top: 8px;
+            display: none;
         }
 
-        .players-list {
+        .error.visible {
+            display: block;
+        }
+
+        .winner-announce {
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(14, 165, 233, 0.2));
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        .winner-announce .big {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fbbf24;
+        }
+
+        .player-list {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
@@ -293,61 +243,56 @@
 </head>
 <body>
 
-    <div class="container" id="app">
+    <div class="container">
         <h1>🫏 Guess the Number</h1>
-        <p class="subtitle">Multiplayer · Real-time · Free</p>
+        <p class="sub">Peer-to-Peer · No Server · Free</p>
 
-        <!-- Player Name -->
-        <div class="input-group">
-            <input type="text" id="playerName" placeholder="Your name..." value="Player" />
-            <button id="setNameBtn">Set Name</button>
+        <!-- Peer ID -->
+        <div class="peer-id-box">
+            Your ID: <span id="myPeerId">Connecting...</span>
         </div>
 
-        <!-- Create / Join -->
+        <!-- Connect -->
         <div class="input-group">
-            <input type="text" id="roomInput" placeholder="Room code or create new..." />
-            <button id="createBtn">Create</button>
-            <button id="joinBtn">Join</button>
+            <input type="text" id="peerInput" placeholder="Enter peer ID to connect..." />
+            <button id="connectBtn">Connect</button>
+        </div>
+
+        <div class="input-group">
+            <button id="hostBtn" style="flex:1;">👑 Host Game</button>
         </div>
 
         <!-- Error -->
-        <div id="error" class="error hidden"></div>
-
-        <!-- Room List -->
-        <div class="room-list" id="roomList">
-            <div style="text-align:center;color:#555;font-size:13px;padding:20px;">Loading rooms...</div>
-        </div>
+        <div class="error" id="error"></div>
 
         <!-- Game Area -->
         <div class="game-area" id="gameArea">
-            <div id="gameHeader">
-                <div class="game-info">
-                    <span>Room: <span id="roomCodeDisplay">—</span></span>
-                    <span>Players: <span id="playerCount">0</span></span>
-                </div>
-                <div class="players-list" id="playersList"></div>
+            <div class="status-box" id="statusBox">
+                Waiting for host to start...
             </div>
 
+            <div class="player-list" id="playerList"></div>
+
             <div id="gameContent">
-                <div style="text-align:center;color:#555;padding:20px;" id="waitingMessage">
+                <div id="waitingMessage" style="text-align:center;color:#555;padding:12px;">
                     Waiting for host to start the game...
                 </div>
 
-                <div id="gameActive" class="hidden">
-                    <div class="game-info">
+                <div id="gameActive" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#aaa;margin-bottom:8px;">
                         <span>Guesses: <span id="guessCount">0</span></span>
                         <span>Remaining: <span id="remainingGuesses">10</span></span>
                     </div>
 
                     <div class="guess-input">
-                        <input type="number" id="guessInput" min="1" max="100" placeholder="Enter your guess..." />
+                        <input type="number" id="guessInput" min="1" max="100" placeholder="Your guess..." />
                         <button id="guessBtn">Guess</button>
                     </div>
 
                     <div class="guess-history" id="guessHistory"></div>
                 </div>
 
-                <div id="gameFinished" class="hidden">
+                <div id="gameFinished" style="display:none;">
                     <div class="winner-announce">
                         <div class="big">🏆</div>
                         <div style="font-size:20px;font-weight:600;margin:8px 0;" id="winnerName">—</div>
@@ -356,7 +301,7 @@
                 </div>
             </div>
 
-            <button id="startGameBtn" class="hidden" style="margin-top:12px;padding:10px 20px;border:none;border-radius:12px;background:linear-gradient(135deg,#e94560,#0ea5e9);color:#fff;font-weight:600;cursor:pointer;width:100%;">
+            <button id="startGameBtn" style="display:none;width:100%;margin-top:12px;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#e94560,#0ea5e9);color:#fff;font-weight:600;cursor:pointer;">
                 🚀 Start Game
             </button>
         </div>
@@ -364,25 +309,25 @@
 
     <script>
         // ─── State ──────────────────────────────────────────────────
-        let socket = null;
-        let currentRoom = null;
-        let playerName = 'Player';
+        let peer = null;
+        let conn = null;
         let isHost = false;
         let gameActive = false;
         let gameFinished = false;
+        let number = null;
+        let guesses = [];
+        let players = [];
+        let playerName = 'Player';
 
-        // ─── DOM Refs ──────────────────────────────────────────────
-        const playerNameInput = document.getElementById('playerName');
-        const setNameBtn = document.getElementById('setNameBtn');
-        const roomInput = document.getElementById('roomInput');
-        const createBtn = document.getElementById('createBtn');
-        const joinBtn = document.getElementById('joinBtn');
-        const roomList = document.getElementById('roomList');
-        const errorDiv = document.getElementById('error');
+        // ─── DOM ────────────────────────────────────────────────────
+        const myPeerId = document.getElementById('myPeerId');
+        const peerInput = document.getElementById('peerInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const hostBtn = document.getElementById('hostBtn');
+        const error = document.getElementById('error');
         const gameArea = document.getElementById('gameArea');
-        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
-        const playerCount = document.getElementById('playerCount');
-        const playersList = document.getElementById('playersList');
+        const statusBox = document.getElementById('statusBox');
+        const playerList = document.getElementById('playerList');
         const waitingMessage = document.getElementById('waitingMessage');
         const gameActiveDiv = document.getElementById('gameActive');
         const gameFinishedDiv = document.getElementById('gameFinished');
@@ -395,275 +340,308 @@
         const winnerName = document.getElementById('winnerName');
         const winningNumber = document.getElementById('winningNumber');
 
-        // ─── Server URL ────────────────────────────────────────────
-        // Replace with your Hugging Face Space URL
-        const SERVER_URL = 'https://your-hf-space.hf.space';
-
-        // ─── Connect ────────────────────────────────────────────────
-        function connect() {
-            if (socket) {
-                socket.disconnect();
-            }
-
-            socket = io(SERVER_URL, {
-                transports: ['websocket'],
-                reconnection: true,
+        // ─── PeerJS ──────────────────────────────────────────────────
+        function initPeer() {
+            peer = new Peer(undefined, {
+                debug: 2
             });
 
-            socket.on('connect', () => {
-                console.log('🟢 Connected to server');
-                showError(null);
-                fetchRooms();
-            });
-
-            socket.on('disconnect', () => {
-                console.log('🔴 Disconnected');
-                showError('Disconnected from server. Reconnecting...');
-            });
-
-            socket.on('error', (msg) => {
-                showError(msg);
-            });
-
-            // ── Socket events ──
-            socket.on('room-created', (data) => {
-                const { roomCode } = data;
-                currentRoom = roomCode;
-                isHost = true;
-                gameActive = false;
-                gameFinished = false;
-                enterRoom(roomCode);
-                fetchRooms();
-            });
-
-            socket.on('room-update', (data) => {
-                if (!currentRoom) return;
-                updateRoomUI(data);
-            });
-
-            socket.on('game-started', (data) => {
-                gameActive = true;
-                gameFinished = false;
-                document.getElementById('gameActive').classList.remove('hidden');
-                document.getElementById('gameFinished').classList.add('hidden');
-                document.getElementById('waitingMessage').classList.add('hidden');
-                document.getElementById('startGameBtn').classList.add('hidden');
-                guessInput.disabled = false;
-                guessBtn.disabled = false;
-                guessInput.value = '';
-                guessHistory.innerHTML = '';
-                guessCount.textContent = '0';
-                remainingGuesses.textContent = '10';
+            peer.on('open', (id) => {
+                myPeerId.textContent = id;
                 showError(null);
             });
 
-            socket.on('game-finished', (data) => {
-                gameActive = false;
-                gameFinished = true;
-                document.getElementById('gameActive').classList.add('hidden');
-                document.getElementById('gameFinished').classList.remove('hidden');
-                document.getElementById('waitingMessage').classList.add('hidden');
-                guessInput.disabled = true;
-                guessBtn.disabled = true;
-                winnerName.textContent = data.winner;
-                winningNumber.textContent = data.number;
-                data.guesses.forEach(g => addGuessToHistory(g));
+            peer.on('connection', (incoming) => {
+                conn = incoming;
+                setupConnection();
+                showError(null);
+                statusBox.innerHTML = '🔗 Connected to peer.';
+                gameArea.classList.add('active');
             });
 
-            socket.on('guess-feedback', (data) => {
-                const entry = {
-                    player: playerName,
-                    guess: data.guess,
-                    feedback: data.feedback
-                };
-                addGuessToHistory(entry);
-                guessCount.textContent = parseInt(guessCount.textContent) + 1;
-                remainingGuesses.textContent = data.remaining;
-                guessInput.value = '';
-                guessInput.focus();
+            peer.on('error', (err) => {
+                showError('Peer error: ' + err.message);
+            });
+
+            peer.on('disconnected', () => {
+                statusBox.innerHTML = '⚠️ Disconnected.';
             });
         }
 
-        // ─── Room Functions ──────────────────────────────────────────
-        function createRoom() {
-            const name = playerNameInput.value.trim() || 'Player';
-            playerName = name;
-            connect();
-            socket.emit('create-room', { playerName: name });
-        }
+        // ─── Connection Setup ──────────────────────────────────────
+        function setupConnection() {
+            conn.on('data', (data) => {
+                handleMessage(data);
+            });
 
-        function joinRoom(roomCode) {
-            const name = playerNameInput.value.trim() || 'Player';
-            playerName = name;
-            connect();
-            socket.emit('join-room', { roomCode, playerName: name });
-            currentRoom = roomCode;
-            isHost = false;
-            enterRoom(roomCode);
-        }
+            conn.on('close', () => {
+                statusBox.innerHTML = '🔴 Peer disconnected.';
+                gameArea.classList.remove('active');
+            });
 
-        function enterRoom(roomCode) {
-            gameArea.classList.add('active');
-            roomCodeDisplay.textContent = roomCode;
-            document.querySelector('.room-list').style.display = 'none';
-            document.getElementById('waitingMessage').classList.remove('hidden');
-            document.getElementById('gameActive').classList.add('hidden');
-            document.getElementById('gameFinished').classList.add('hidden');
-            document.getElementById('startGameBtn').classList.add('hidden');
-            guessInput.disabled = true;
-            guessBtn.disabled = true;
-            showError(null);
-        }
-
-        function startGame() {
-            if (!currentRoom || !isHost) return;
-            socket.emit('start-game', { roomCode: currentRoom });
-        }
-
-        function makeGuess() {
-            if (!currentRoom || !gameActive) return;
-            const guess = parseInt(guessInput.value);
-            if (isNaN(guess) || guess < 1 || guess > 100) {
-                showError('Guess must be between 1 and 100.');
-                return;
+            // Send player name on connect
+            if (isHost) {
+                sendMessage({ type: 'init', players: [{ id: peer.id, name: playerName }], isHost: true });
+            } else {
+                sendMessage({ type: 'init', playerName: playerName });
             }
-            socket.emit('make-guess', { roomCode: currentRoom, guess });
         }
 
-        // ─── UI Updates ──────────────────────────────────────────────
-        function updateRoomUI(room) {
-            if (!room) return;
+        // ─── Send Message ──────────────────────────────────────────
+        function sendMessage(msg) {
+            if (conn && conn.open) {
+                conn.send(msg);
+            }
+        }
 
+        // ─── Handle Messages ──────────────────────────────────────
+        function handleMessage(data) {
+            console.log('📨 Received:', data);
+
+            switch (data.type) {
+                case 'init':
+                    if (data.isHost) {
+                        // We're joining a host
+                        players = data.players || [];
+                        isHost = false;
+                        updateUI();
+                        statusBox.innerHTML = '👋 Joined game. Waiting for host to start.';
+                        waitingMessage.style.display = 'block';
+                        gameActiveDiv.style.display = 'none';
+                        gameFinishedDiv.style.display = 'none';
+                        startGameBtn.style.display = 'none';
+                    } else {
+                        // Someone joined us (we're host)
+                        if (isHost) {
+                            players.push({ id: data.playerName, name: data.playerName });
+                            updateUI();
+                            broadcastState();
+                        }
+                    }
+                    break;
+
+                case 'start-game':
+                    number = data.number;
+                    gameActive = true;
+                    gameFinished = false;
+                    guesses = [];
+                    waitingMessage.style.display = 'none';
+                    gameActiveDiv.style.display = 'block';
+                    gameFinishedDiv.style.display = 'none';
+                    startGameBtn.style.display = 'none';
+                    guessCount.textContent = '0';
+                    remainingGuesses.textContent = '10';
+                    guessHistory.innerHTML = '';
+                    guessInput.disabled = false;
+                    guessBtn.disabled = false;
+                    statusBox.innerHTML = '🎮 Game started! Guess the number.';
+                    broadcastState();
+                    break;
+
+                case 'guess':
+                    const entry = {
+                        player: data.player,
+                        guess: data.guess,
+                        feedback: data.feedback,
+                    };
+                    guesses.push(entry);
+                    addGuessToHistory(entry);
+                    guessCount.textContent = guesses.length;
+                    remainingGuesses.textContent = 10 - guesses.length;
+
+                    if (data.feedback === 'winner') {
+                        gameActive = false;
+                        gameFinished = true;
+                        gameActiveDiv.style.display = 'none';
+                        gameFinishedDiv.style.display = 'block';
+                        winnerName.textContent = data.player;
+                        winningNumber.textContent = number;
+                        statusBox.innerHTML = '🏆 Game finished!';
+                        guessInput.disabled = true;
+                        guessBtn.disabled = true;
+                    }
+                    break;
+
+                case 'state-sync':
+                    if (data.players) players = data.players;
+                    if (data.guesses) guesses = data.guesses;
+                    if (data.number) number = data.number;
+                    if (data.gameActive !== undefined) gameActive = data.gameActive;
+                    if (data.gameFinished !== undefined) gameFinished = data.gameFinished;
+                    updateUI();
+                    break;
+            }
+        }
+
+        // ─── Broadcast State ───────────────────────────────────────
+        function broadcastState() {
+            sendMessage({
+                type: 'state-sync',
+                players: players,
+                guesses: guesses,
+                number: number,
+                gameActive: gameActive,
+                gameFinished: gameFinished,
+            });
+        }
+
+        // ─── UI Updates ─────────────────────────────────────────────
+        function updateUI() {
             // Players
-            playerCount.textContent = room.players.length;
-            playersList.innerHTML = room.players.map(p =>
-                `<span class="player-tag ${p.id === room.host ? 'host' : ''}">${p.name} ${p.id === room.host ? '👑' : ''}</span>`
+            playerList.innerHTML = players.map(p =>
+                `<span class="player-tag ${p.id === peer?.id ? 'host' : ''}">${p.name} ${p.id === peer?.id ? '👑' : ''}</span>`
             ).join('');
 
-            // Status
-            if (room.status === 'waiting') {
-                document.getElementById('waitingMessage').classList.remove('hidden');
-                document.getElementById('gameActive').classList.add('hidden');
-                document.getElementById('gameFinished').classList.add('hidden');
-                document.getElementById('startGameBtn').classList.add('hidden');
-
-                if (isHost && room.players.length >= 2) {
-                    document.getElementById('startGameBtn').classList.remove('hidden');
-                    document.getElementById('startGameBtn').textContent = `🚀 Start Game (${room.players.length} players)`;
-                } else if (isHost) {
-                    document.getElementById('startGameBtn').classList.add('hidden');
-                }
-            }
-
-            if (room.status === 'playing') {
-                document.getElementById('waitingMessage').classList.add('hidden');
-                document.getElementById('gameActive').classList.remove('hidden');
-                document.getElementById('gameFinished').classList.add('hidden');
-                document.getElementById('startGameBtn').classList.add('hidden');
-                guessInput.disabled = false;
-                guessBtn.disabled = false;
-                gameActive = true;
-                gameFinished = false;
-            }
-
-            if (room.status === 'finished') {
-                document.getElementById('waitingMessage').classList.add('hidden');
-                document.getElementById('gameActive').classList.add('hidden');
-                document.getElementById('gameFinished').classList.remove('hidden');
-                document.getElementById('startGameBtn').classList.add('hidden');
-                gameActive = false;
-                gameFinished = true;
-                if (room.winner) {
-                    winnerName.textContent = room.winner;
-                    winningNumber.textContent = room.number || '?';
-                }
+            // Start button for host
+            if (isHost && !gameActive && !gameFinished) {
+                startGameBtn.style.display = players.length >= 2 ? 'block' : 'none';
+                startGameBtn.textContent = `🚀 Start Game (${players.length} players)`;
             }
         }
 
         function addGuessToHistory(entry) {
             const div = document.createElement('div');
             div.className = 'guess-entry';
-            const feedbackClass = entry.feedback === 'too-high' ? 'too-high' :
+            const cls = entry.feedback === 'too-high' ? 'too-high' :
                 entry.feedback === 'too-low' ? 'too-low' : 'winner';
-            const feedbackLabel = entry.feedback === 'too-high' ? '⬆️ Too high' :
+            const label = entry.feedback === 'too-high' ? '⬆️ Too high' :
                 entry.feedback === 'too-low' ? '⬇️ Too low' : '🎯 WINNER!';
-            div.innerHTML = `
-                <span class="name">${entry.player}</span>
-                <span class="guess ${feedbackClass}">${entry.guess} — ${feedbackLabel}</span>
-            `;
+            div.innerHTML =
+                `<span class="name">${entry.player}</span><span class="guess ${cls}">${entry.guess} — ${label}</span>`;
             guessHistory.appendChild(div);
             guessHistory.scrollTop = guessHistory.scrollHeight;
         }
 
+        // ─── Show Error ─────────────────────────────────────────────
         function showError(msg) {
+            const el = document.getElementById('error');
             if (msg) {
-                errorDiv.textContent = msg;
-                errorDiv.classList.remove('hidden');
+                el.textContent = msg;
+                el.classList.add('visible');
             } else {
-                errorDiv.classList.add('hidden');
+                el.classList.remove('visible');
             }
         }
 
-        // ─── Fetch Rooms ─────────────────────────────────────────────
-        function fetchRooms() {
-            fetch(`${SERVER_URL}/api/rooms`)
-                .then(res => res.json())
-                .then(rooms => {
-                    if (!rooms.length) {
-                        roomList.innerHTML = `<div style="text-align:center;color:#555;font-size:13px;padding:20px;">No rooms available. Create one!</div>`;
-                        return;
-                    }
-                    roomList.innerHTML = rooms.map(room => `
-                        <div class="room-item" onclick="joinRoom('${room.code}')">
-                            <div>
-                                <div class="code">${room.code}</div>
-                                <div class="info">${room.players} / ${room.maxPlayers} players</div>
-                            </div>
-                            <span class="status ${room.status}">${room.status}</span>
-                        </div>
-                    `).join('');
-                })
-                .catch(() => {
-                    roomList.innerHTML = `<div style="text-align:center;color:#555;font-size:13px;padding:20px;">Error loading rooms. Make sure server is running.</div>`;
-                });
+        // ─── Host Game ──────────────────────────────────────────────
+        function hostGame() {
+            const name = prompt('Enter your name:', 'Host') || 'Host';
+            playerName = name;
+            isHost = true;
+            players = [{ id: peer.id, name: playerName }];
+            gameArea.classList.add('active');
+            statusBox.innerHTML = '👑 You are the host. Share your Peer ID with others.';
+            waitingMessage.style.display = 'block';
+            gameActiveDiv.style.display = 'none';
+            gameFinishedDiv.style.display = 'none';
+            startGameBtn.style.display = 'none';
+            updateUI();
+
+            // Wait for connections
+            peer.on('connection', (incoming) => {
+                conn = incoming;
+                setupConnection();
+                statusBox.innerHTML = '🔗 Player connected!';
+            });
         }
 
-        // ─── Event Listeners ──────────────────────────────────────────
-        createBtn.addEventListener('click', createRoom);
-        joinBtn.addEventListener('click', () => {
-            const code = roomInput.value.trim().toUpperCase();
-            if (code) joinRoom(code);
-            else showError('Enter a room code.');
-        });
+        // ─── Start Game (Host) ──────────────────────────────────────
+        function startGame() {
+            if (!isHost || players.length < 2) return;
+            number = Math.floor(Math.random() * 100) + 1;
+            gameActive = true;
+            gameFinished = false;
+            guesses = [];
+            sendMessage({ type: 'start-game', number: number });
+            waitingMessage.style.display = 'none';
+            gameActiveDiv.style.display = 'block';
+            gameFinishedDiv.style.display = 'none';
+            startGameBtn.style.display = 'none';
+            guessCount.textContent = '0';
+            remainingGuesses.textContent = '10';
+            guessHistory.innerHTML = '';
+            guessInput.disabled = false;
+            guessBtn.disabled = false;
+            statusBox.innerHTML = '🎮 Game started! Guess the number.';
+            broadcastState();
+        }
 
-        setNameBtn.addEventListener('click', () => {
-            const name = playerNameInput.value.trim() || 'Player';
-            playerName = name;
+        // ─── Make Guess ─────────────────────────────────────────────
+        function makeGuess() {
+            if (!gameActive) return;
+            const val = parseInt(guessInput.value);
+            if (isNaN(val) || val < 1 || val > 100) {
+                showError('Guess must be between 1 and 100.');
+                return;
+            }
+
+            const feedback = val === number ? 'winner' : (val < number ? 'too-low' : 'too-high');
+
+            const entry = {
+                player: playerName,
+                guess: val,
+                feedback: feedback,
+            };
+            guesses.push(entry);
+            addGuessToHistory(entry);
+            guessCount.textContent = guesses.length;
+            remainingGuesses.textContent = 10 - guesses.length;
+
+            sendMessage({ type: 'guess', player: playerName, guess: val, feedback: feedback });
+
+            if (feedback === 'winner') {
+                gameActive = false;
+                gameFinished = true;
+                gameActiveDiv.style.display = 'none';
+                gameFinishedDiv.style.display = 'block';
+                winnerName.textContent = playerName;
+                winningNumber.textContent = number;
+                statusBox.innerHTML = '🏆 You won!';
+                guessInput.disabled = true;
+                guessBtn.disabled = true;
+            } else {
+                guessInput.value = '';
+                guessInput.focus();
+            }
+
+            broadcastState();
+        }
+
+        // ─── Connect to Peer ────────────────────────────────────────
+        function connectToPeer() {
+            const targetId = peerInput.value.trim();
+            if (!targetId) {
+                showError('Enter a Peer ID.');
+                return;
+            }
+            if (!peer) {
+                showError('Peer not initialized.');
+                return;
+            }
+
+            conn = peer.connect(targetId);
+            setupConnection();
+            statusBox.innerHTML = '🔗 Connecting...';
+            gameArea.classList.add('active');
             showError(null);
-        });
+        }
 
+        // ─── Event Listeners ──────────────────────────────────────
+        connectBtn.addEventListener('click', connectToPeer);
+        hostBtn.addEventListener('click', hostGame);
         startGameBtn.addEventListener('click', startGame);
         guessBtn.addEventListener('click', makeGuess);
         guessInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') makeGuess();
         });
-
-        roomInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const code = roomInput.value.trim().toUpperCase();
-                if (code) joinRoom(code);
-            }
+        peerInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') connectToPeer();
         });
 
-        // ─── Refresh rooms every 5 seconds ──────────────────────────
-        setInterval(() => {
-            if (!currentRoom) fetchRooms();
-        }, 5000);
+        // ─── Init ────────────────────────────────────────────────────
+        initPeer();
 
-        // ─── Connect on load ──────────────────────────────────────────
-        connect();
-
-        console.log('🫏 Guess the Number — Ready');
+        console.log('🫏 Guess the Number — P2P Ready');
     </script>
 
 </body>
